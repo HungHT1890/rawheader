@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <title>Tool đa năng: Curl ↔ Headers</title>
+  <style>
+    body { font-family: sans-serif; max-width: 900px; margin: 30px auto; padding: 20px; }
+    textarea { width: 100%; height: 200px; margin-top: 10px; }
+    button { padding: 10px 15px; margin: 10px 0; cursor: pointer; }
+    .tab { display: none; }
+    .tab.active { display: block; }
+    .tabs { margin-bottom: 20px; }
+    .tabs button { margin-right: 10px; }
+  </style>
+</head>
+<body>
+
+  <h2>🧰 Công cụ đa năng: Chuyển curl & định dạng headers</h2>
+
+  <div class="tabs">
+    <button onclick="switchTab('curl')">🔁 Curl → Python</button>
+    <button onclick="switchTab('header')">🔧 Sửa Header</button>
+  </div>
+
+  <!-- Tab 1: CURL to PYTHON -->
+  <div id="curl" class="tab active">
+    <label>Nhập lệnh cURL:</label>
+    <textarea id="curlInput" placeholder="curl 'https://example.com' -H 'Authorization: Bearer token' -d 'a=1'"></textarea>
+    <button onclick="convertCurl()">Chuyển sang Python requests</button>
+    <label>Kết quả Python:</label>
+    <textarea id="pythonOutput" readonly></textarea>
+    <button onclick="copyText('pythonOutput')">Copy</button>
+  </div>
+
+  <!-- Tab 2: RAW HEADER to KEY: VALUE -->
+  <div id="header" class="tab">
+    <label>Nhập header dạng raw (xuống dòng):</label>
+    <textarea id="inputHeader" placeholder="authorization:\nBearer token..."></textarea>
+    <button onclick="convertHeader()">Chuyển sang key: value</button>
+    <label>Kết quả headers:</label>
+    <textarea id="outputHeader" readonly></textarea>
+    <button onclick="copyText('outputHeader')">Copy</button>
+  </div>
+
+  <script>
+    function switchTab(tabName) {
+      document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+      document.getElementById(tabName).classList.add('active');
+    }
+
+    function convertCurl() {
+      const curl = document.getElementById('curlInput').value;
+      const urlRegex = /curl ['"]([^'"]+)['"]/;
+      const headerRegex = /-H ['"]([^'"]+)['"]/g;
+      const dataRegex = /--data-raw ['"]([^'"]+)['"]|--data ['"]([^'"]+)['"]|-d ['"]([^'"]+)['"]/;
+
+      let url = (curl.match(urlRegex) || [])[1] || '';
+      let headers = {};
+      let match;
+      while ((match = headerRegex.exec(curl)) !== null) {
+        const [key, value] = match[1].split(/:\s(.+)/);
+        headers[key] = value;
+      }
+
+      let dataMatch = curl.match(dataRegex);
+      let data = '';
+      if (dataMatch) {
+        data = dataMatch[1] || dataMatch[2] || dataMatch[3] || '';
+      }
+
+      let result = "import requests\n\n";
+      result += `url = "${url}"\n`;
+
+      result += "headers = {\n";
+      for (let key in headers) {
+        result += `    "${key}": "${headers[key]}",\n`;
+      }
+      result += "}\n";
+
+      if (data) {
+        result += `data = "${data}"\n`;
+        result += "response = requests.post(url, headers=headers, data=data)\n";
+      } else {
+        result += "response = requests.get(url, headers=headers)\n";
+      }
+
+      result += "print(response.text)";
+      document.getElementById('pythonOutput').value = result;
+    }
+
+    function convertHeader() {
+      const input = document.getElementById('inputHeader').value;
+      const lines = input.split(/\r?\n/);
+      let result = '';
+      let tempKey = '', tempValue = '';
+      for (let line of lines) {
+        if (line.includes(':')) {
+          if (tempKey) result += `${tempKey}: ${tempValue.trim()}\n`;
+          const [key, ...val] = line.split(':');
+          tempKey = key.trim();
+          tempValue = val.join(':').trim();
+        } else if (line.trim() !== '') {
+          tempValue += ' ' + line.trim();
+        }
+      }
+      if (tempKey) result += `${tempKey}: ${tempValue.trim()}`;
+      document.getElementById('outputHeader').value = result;
+    }
+
+    function copyText(id) {
+      const output = document.getElementById(id);
+      output.select();
+      document.execCommand('copy');
+      alert('Đã copy!');
+    }
+  </script>
+
+</body>
+</html>
